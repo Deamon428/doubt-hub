@@ -2,6 +2,7 @@ import json
 import requests
 import numpy as np
 from typing import List, Dict
+from datetime import datetime
 
 DB_NAME = "doubts.db"
 
