@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from typing import List, Dict
+from typing import List, Dict, Optional
 from contextlib import contextmanager
 import sqlite3
 from datetime import datetime
@@ -73,6 +73,45 @@ def init_db():
             )
         ''')
         conn.commit()
+
+def assign_or_create_cluster(conn, doubt_data: Dict) -> int:
+    text_to_embed = f"{doubt_data['doubt_text']} | Stuck because: {doubt_data['ai_failure_reason']}"
+    new_embedding = get_embedding(text_to_embed)
+
+    conn.execute('''
+        SELECT id, centroid_embedding FROM clusters WHERE course_id = ? AND sheet_no = ? AND question_no = ?
+    ''', (doubt_data['course_id'], doubt_data['sheet_no'], doubt_data['question_no']))
+    existing_clusters = conn.fetchall()
+
+    max_similarity = 0.0
+    cluster_id = None
+
+    for cluster in existing_clusters:
+        centroid_embedding = json.loads(cluster['centroid_embedding'])
+        similarity = cosine_similarity(new_embedding, centroid_embedding)
+        if similarity > max_similarity:
+            max_similarity = similarity
+            cluster_id = cluster['id']
+
+    if max_similarity >= 0.82:
+        conn.execute('''
+            UPDATE clusters SET upvotes = upvotes + 1 WHERE id = ?
+        ''', (cluster_id,))
+    else:
+        title = doubt_data['doubt_text'][:60] + "..."
+        conn.execute('''
+            INSERT INTO clusters (course_id, sheet_no, question_no, title, upvotes, centroid_embedding)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (doubt_data['course_id'], doubt_data['sheet_no'], doubt_data['question_no'], title, 1, json.dumps(new_embedding)))
+        cluster_id = conn.lastrowid
+
+    conn.execute('''
+        INSERT INTO doubts (course_id, sheet_no, question_no, doubt_text, ai_failure_reason, embedding, cluster_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (doubt_data['course_id'], doubt_data['sheet_no'], doubt_data['question_no'], doubt_data['doubt_text'], doubt_data['ai_failure_reason'], json.dumps(new_embedding), cluster_id, datetime.now().isoformat()))
+    conn.commit()
+
+    return cluster_id
 
 app = FastAPI()
 
