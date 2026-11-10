@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DoubtHub | TA Deadlock Board</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen p-6 sm:p-10 font-sans">
+
+  <div class="max-w-5xl mx-auto">
+    <!-- Top Bar -->
+    <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-zinc-800">
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-2xl font-bold tracking-tight text-white">DoubtHub</h1>
+          <span class="px-2 py-0.5 text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded">
+            TA Deadlock Board
+          </span>
+        </div>
+        <p class="text-zinc-400 text-sm mt-1">Pre-tutorial roadblock briefing grouped by conceptual failure points.</p>
+      </div>
+
+      <!-- Controls & Filter Bar -->
+      <div class="flex items-center gap-3">
+        <div class="flex items-center bg-zinc-900 border border-zinc-800 rounded-lg p-1">
+          <input id="filter-course" type="text" value="UMA023" placeholder="Course" 
+                 class="w-24 bg-transparent px-2.5 py-1 text-sm font-medium text-white focus:outline-none uppercase" />
+          <span class="text-zinc-600">/</span>
+          <span class="text-xs text-zinc-400 px-2 font-mono">Sheet</span>
+          <input id="filter-sheet" type="number" value="3" placeholder="3" 
+                 class="w-14 bg-transparent px-1 py-1 text-sm font-medium text-white focus:outline-none" />
+        </div>
+        <button id="refresh-btn" 
+                class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition duration-150 flex items-center gap-2">
+          <span>Load Queue</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Queue Container -->
+    <main class="mt-8">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Tutorial Priority Bottlenecks</h2>
+        <span id="stat-count" class="text-xs text-zinc-500 font-mono">0 active clusters</span>
+      </div>
+
+      <div id="clusters-container" class="space-y-4">
+        <!-- Loading State -->
+        <div class="p-8 text-center text-zinc-500 bg-zinc-900/50 border border-zinc-800/80 rounded-xl">
+          Loading active roadblocks...
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const container = document.getElementById('clusters-container');
+    const refreshBtn = document.getElementById('refresh-btn');
+    const courseInput = document.getElementById('filter-course');
+    const sheetInput = document.getElementById('filter-sheet');
+    const statCount = document.getElementById('stat-count');
+
+    async function loadBoard() {
+      const course = courseInput.value.trim();
+      const sheet = sheetInput.value.trim();
+      if (!course || !sheet) return;
+
+      container.innerHTML = `<div class="p-8 text-center text-zinc-500 bg-zinc-900/50 border border-zinc-800/80 rounded-xl">Fetching doubt clusters...</div>`;
+
+      try {
+        const res = await fetch(`/api/ta/board?course_id=${encodeURIComponent(course)}&sheet_no=${encodeURIComponent(sheet)}`);
+        const clusters = await res.json();
+
+        statCount.textContent = `${clusters.length} active roadblock clusters`;
+
+        if (clusters.length === 0) {
+          container.innerHTML = `
+            <div class="p-12 text-center bg-zinc-900/30 border border-dashed border-zinc-800 rounded-2xl">
+              <p class="text-zinc-400 font-medium">No unresolved doubts logged for Sheet ${sheet}.</p>
+              <p class="text-xs text-zinc-600 mt-1">Students either understood the material or haven't opened the tutorial sheet yet.</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = '';
+        clusters.forEach((c, idx) => {
+          const card = document.createElement('div');
+          card.className = "bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-sm transition hover:border-zinc-700";
+
+          // Format AI Summary if present
+          const summaryHtml = c.ai_summary 
+            ? `<div class="mt-4 p-4 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-100 text-sm whitespace-pre-line leading-relaxed">
+                 <div class="text-xs font-semibold uppercase tracking-wider text-indigo-400 mb-1 flex items-center gap-1.5">
+                   <span>⚡ Whiteboard Resolution Strategy</span>
+                 </div>
+                 ${c.ai_summary}
+               </div>`
+            : `<div class="mt-4">
+                 <button onclick="generateGuide(${c.id}, this)" 
+                         class="text-xs font-medium bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
+                   <span>✨ Synthesize 2-Min Whiteboard Guide</span>
+                 </button>
+               </div>`;
+
+          // Format Student Breakdown Accordion
+          const doubtsHtml = c.doubts.map(d => `
+            <div class="p-3 bg-zinc-950 rounded-lg border border-zinc-800/80 text-xs space-y-1">
+              <div class="text-zinc-200 font-medium">${escapeHtml(d.doubt_text)}</div>
+              <div class="text-amber-400/90 font-mono">Why AI failed: <span class="text-zinc-400 font-sans">${escapeHtml(d.ai_failure_reason)}</span></div>
+            </div>
+          `).join('');
+
+          card.innerHTML = `
+            <div class="flex items-start justify-between gap-4">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="px-2.5 py-0.5 rounded-md bg-zinc-800 text-zinc-300 font-mono text-xs font-semibold">
+                    Question ${escapeHtml(c.question_no)}
+                  </span>
+                  <span class="px-2 py-0.5 rounded-md bg-rose-500/10 border border-rose-500/20 text-rose-400 font-semibold text-xs">
+                    🔥 ${c.upvotes} Students Stuck
+                  </span>
+                </div>
+                <h3 class="text-base font-semibold text-white mt-1">${escapeHtml(c.title)}</h3>
+              </div>
+
+              <button onclick="upvoteCluster(${c.id})" 
+                      class="shrink-0 text-xs px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition">
+                +1 Upvote
+              </button>
+            </div>
+
+            <div id="summary-slot-${c.id}">
+              ${summaryHtml}
+            </div>
+
+            <!-- Accordion -->
+            <details class="mt-4 group">
+              <summary class="cursor-pointer text-xs font-medium text-zinc-400 hover:text-zinc-200 transition select-none flex items-center gap-1">
+                <span>Inspect ${c.doubts.length} student breakdown(s)</span>
+              </summary>
+              <div class="mt-3 space-y-2 pt-2 border-t border-zinc-800">
+                ${doubtsHtml}
+              </div>
+            </details>
+          `;
+
+          container.appendChild(card);
+        });
+      } catch (err) {
+        container.innerHTML = `<div class="p-6 text-center text-rose-400 bg-rose-950/20 border border-rose-800/40 rounded-xl">Error loading deadlock board. Ensure the FastAPI backend is running.</div>`;
+      }
+    }
+
+    async function generateGuide(clusterId, btn) {
+      btn.disabled = true;
+      btn.textContent = 'Generating briefing via local Qwen...';
+
+      try {
+        const res = await fetch(`/api/ta/synthesize/${clusterId}`, { method: 'POST' });
+        const data = await res.json();
+        const slot = document.getElementById(`summary-slot-${clusterId}`);
+        slot.innerHTML = `
+          <div class="mt-4 p-4 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-100 text-sm whitespace-pre-line leading-relaxed">
+            <div class="text-xs font-semibold uppercase tracking-wider text-indigo-400 mb-1 flex items-center gap-1.5">
+              <span>⚡ Whiteboard Resolution Strategy</span>
+            </div>
+            ${escapeHtml(data.summary)}
+          </div>
+        `;
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Failed. Retry?';
+      }
+    }
+
+    async function upvoteCluster(clusterId) {
+      await fetch(`/api/clusters/${clusterId}/upvote`, { method: 'POST' });
+      loadBoard();
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    refreshBtn.addEventListener('click', loadBoard);
+    window.addEventListener('DOMContentLoaded', loadBoard);
+  </script>
+</body>
+</html>
