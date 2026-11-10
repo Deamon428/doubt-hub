@@ -20,7 +20,7 @@ def cosine_similarity(vec_a: List[float], vec_b: List[float]) -> float:
     return dot_product / (norm_a * norm_b)
 
 def assign_or_create_cluster(conn, doubt_data: Dict) -> int:
-    text_to_embed = f"{doubt_data['doubt_text']} | Stuck because: {doubt_data['ai_failure_reason']}"
+    text_to_embed = doubt_data['doubt_text']
     new_embedding = get_embedding(text_to_embed)
 
     cursor = conn.execute('SELECT id, centroid_embedding FROM clusters WHERE course_id = ? AND sheet_no = ? AND question_no = ?', (doubt_data['course_id'], doubt_data['sheet_no'], doubt_data['question_no']))
