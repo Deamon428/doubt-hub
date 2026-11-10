@@ -1,4 +1,11 @@
 .aider*
 __pycache__/
-*.py[cod]
+*.pyc
+doubts.db
+doubts.db-wal
+doubts.db-shm
+static/uploads/*
+!static/uploads/.gitkeep
+.env
+.env.*
 .DS_Store

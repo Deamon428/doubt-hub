@@ -1,17 +1,24 @@
+import os
 import json
 import re
 import sqlite3
 from typing import Any, Dict, List
 from datetime import datetime
 import numpy as np
-import requests
+import google.generativeai as genai
+from dotenv import load_dotenv
+
+load_dotenv()
+
+api_key = os.getenv("GEMINI_API_KEY")
+if api_key:
+    genai.configure(api_key=api_key)
 
 DB_NAME = "doubts.db"
 
 def get_embedding(text: str) -> List[float]:
-    response = requests.post("http://127.0.0.1:11434/api/embeddings", json={"model": "nomic-embed-text", "prompt": text})
-    response.raise_for_status()
-    return response.json()["embedding"]
+    result = genai.embed_content(model="models/text-embedding-004", content=text)
+    return result["embedding"]
 
 def cosine_similarity(vec_a: List[float], vec_b: List[float]) -> float:
     dot_product = np.dot(vec_a, vec_b)
@@ -19,9 +26,9 @@ def cosine_similarity(vec_a: List[float], vec_b: List[float]) -> float:
     norm_b = np.linalg.norm(vec_b)
     if norm_a == 0 or norm_b == 0:
         return 0.0
-    return dot_product / (norm_a * norm_b)
+    return float(dot_product / (norm_a * norm_b))
 
-def query_qwen_tie_breaker(existing_title: str, new_doubt: str) -> bool:
+def query_gemini_tie_breaker(existing_title: str, new_doubt: str) -> bool:
     prompt = (
         "You are an engineering math TA assistant.\n"
         "Determine if Doubt B describes the same underlying roadblock as Doubt A for the same problem.\n\n"
@@ -31,26 +38,24 @@ def query_qwen_tie_breaker(existing_title: str, new_doubt: str) -> bool:
         'Reply ONLY with a JSON object: {"is_same_roadblock": true} or {"is_same_roadblock": false}'
     )
     try:
-        response = requests.post(
-            "http://127.0.0.1:11434/api/generate",
-            json={
-                "model": "qwen2.5-coder:7b",
-                "prompt": prompt,
-                "stream": False,
-                "format": "json"
-            },
-            timeout=15
+        model = genai.GenerativeModel(
+            "gemini-1.5-flash",
+            generation_config={"response_mime_type": "application/json"}
         )
-        response.raise_for_status()
-        raw_output = response.json().get("response", "").strip()
+        response = model.generate_content(prompt)
+        raw_output = response.text.strip()
         match = re.search(r'\{.*\}', raw_output, re.DOTALL)
         if match:
             parsed = json.loads(match.group(0))
         else:
             parsed = json.loads(raw_output)
         return bool(parsed.get("is_same_roadblock", False))
-    except Exception:
+    except Exception as e:
+        print(f"[DoubtHub Stage 2] Gemini tie-breaker error: {e}")
         return False
+
+# Backward compatibility alias
+query_qwen_tie_breaker = query_gemini_tie_breaker
 
 def _update_cluster_centroid(conn: sqlite3.Connection, cluster: Any, new_embedding: List[float]) -> int:
     cluster_id = cluster['id']
@@ -123,13 +128,13 @@ def assign_or_create_cluster(conn: sqlite3.Connection, doubt_data: Dict[str, Any
             print(f"[DoubtHub Stage 1] Low similarity ({max_similarity:.4f} < 0.50). Auto-creating new cluster")
             cluster_id = _create_cluster(conn, course_id, sheet_no, question_no, text_to_embed, new_embedding)
         else:
-            print(f"[DoubtHub Stage 1] Gray zone similarity ({max_similarity:.4f}). Escalating to Qwen tie-breaker...")
-            is_same = query_qwen_tie_breaker(best_candidate['title'], text_to_embed)
+            print(f"[DoubtHub Stage 1] Gray zone similarity ({max_similarity:.4f}). Escalating to Gemini tie-breaker...")
+            is_same = query_gemini_tie_breaker(best_candidate['title'], text_to_embed)
             if is_same:
-                print(f"[DoubtHub Stage 2] Qwen confirmed match! Merging into Cluster #{best_id}")
+                print(f"[DoubtHub Stage 2] Gemini confirmed match! Merging into Cluster #{best_id}")
                 cluster_id = _update_cluster_centroid(conn, best_candidate, new_embedding)
             else:
-                print(f"[DoubtHub Stage 2] Qwen rejected match. Creating new cluster")
+                print(f"[DoubtHub Stage 2] Gemini rejected match. Creating new cluster")
                 cluster_id = _create_cluster(conn, course_id, sheet_no, question_no, text_to_embed, new_embedding)
 
     d_cursor = conn.execute(

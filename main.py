@@ -3,11 +3,18 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 import requests
+import google.generativeai as genai
+from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from models import DoubtCreate, TALoginRequest, TAResponseInput, get_db, init_db
 from cluster import assign_or_create_cluster
+
+load_dotenv()
+api_key = os.getenv("GEMINI_API_KEY")
+if api_key:
+    genai.configure(api_key=api_key)
 
 UPLOAD_DIR = os.path.join("static", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -196,12 +203,13 @@ def synthesize_cluster(cluster_id: int) -> Dict[str, str]:
             f"Doubts:\n{doubt_details}"
         )
         
-        res = requests.post("http://127.0.0.1:11434/api/generate", json={
-            "model": "qwen2.5-coder:7b",
-            "prompt": prompt,
-            "stream": False
-        })
-        summary = res.json().get("response", "")
+        try:
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            response = model.generate_content(prompt)
+            summary = response.text.strip()
+        except Exception as e:
+            summary = f"Failed to synthesize briefing: {e}"
+
         up_cursor = conn.execute("UPDATE clusters SET ai_summary = ? WHERE id = ?", (summary, cluster_id))
         conn.commit()
         up_cursor.close()
