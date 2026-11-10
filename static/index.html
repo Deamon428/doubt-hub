@@ -8,117 +8,756 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
-<body class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col items-center justify-center p-4">
+<body class="bg-zinc-950 text-zinc-100 min-h-screen p-4 sm:p-8 font-sans">
 
-    <div class="w-full max-w-xl">
-        <!-- Header -->
-        <div class="mb-8 text-center">
-            <div
-                class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-medium mb-3">
-                Tutorial Queue Escalation
+    <div class="w-full max-w-2xl mx-auto">
+        <!-- Top Navigation / Header -->
+        <header class="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-zinc-800">
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-2xl font-bold tracking-tight text-white">DoubtHub</h1>
+                    <span class="px-2 py-0.5 text-xs font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded">
+                        Student Queue
+                    </span>
+                </div>
+                <p class="text-zinc-400 text-sm mt-1">Check existing student roadblocks or escalate directly to your TA.</p>
             </div>
-            <h1 class="text-3xl font-bold tracking-tight text-white">DoubtHub</h1>
-            <p class="text-zinc-400 text-sm mt-1">When generic AI explanations fall short, escalate directly to your
-                tutorial TA.</p>
+            <a href="/static/ta.html" 
+               class="text-xs font-medium text-zinc-400 hover:text-zinc-200 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 px-3 py-1.5 rounded-lg transition self-start sm:self-auto flex items-center gap-1.5">
+                <span>TA Deadlock Board</span>
+                <span class="text-zinc-500">→</span>
+            </a>
+        </header>
+
+        <!-- Course & Sheet Selection Bar -->
+        <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-3.5 mb-6 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+            <div class="flex items-center gap-3">
+                <span class="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Target Sheet:</span>
+                <div class="flex items-center bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 transition">
+                    <input id="course_id" type="text" value="UMA023" placeholder="Course" 
+                           class="w-20 bg-transparent text-sm font-medium text-white uppercase focus:outline-none font-mono" />
+                    <span class="text-zinc-600 px-2 font-mono">/</span>
+                    <span class="text-xs text-zinc-500 font-mono pr-1">Sheet</span>
+                    <input id="sheet_no" type="number" value="3" placeholder="3" 
+                           class="w-14 bg-transparent text-sm font-medium text-white focus:outline-none font-mono" />
+                </div>
+            </div>
+            <div id="feed-status" class="text-xs font-mono text-zinc-400">
+                Checking roadblocks...
+            </div>
         </div>
 
-        <!-- Main Card -->
-        <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-xl">
-            <form id="doubt-form" class="space-y-5">
+        <!-- Section 1: Collapsible Active Roadblocks Drawer -->
+        <section class="mb-8">
+            <details id="roadblocks-details" class="group bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden transition shadow-lg">
+                <!-- Closed / Header State -->
+                <summary class="flex items-center justify-between p-4 sm:p-5 cursor-pointer hover:bg-zinc-800/50 transition select-none list-none [&::-webkit-details-marker]:hidden">
+                    <div class="flex items-center gap-2">
+                        <span id="roadblocks-summary-title" class="text-sm font-semibold text-white tracking-tight flex items-center gap-1.5">
+                            ⚡ Active Roadblocks (0) — Click to view &amp; upvote
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-2 text-zinc-400 group-hover:text-zinc-200 transition">
+                        <svg class="w-4 h-4 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
+                </summary>
 
-                <!-- Metadata Row -->
-                <div class="grid grid-cols-3 gap-3">
-                    <div>
-                        <label
-                            class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">Course</label>
-                        <input id="course_id" type="text" value="UMA023" required
-                            class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+                <!-- Expanded State: Scrollable Container -->
+                <div class="px-4 pb-4 sm:px-5 sm:pb-5 pt-2 border-t border-zinc-800/80">
+                    <div id="roadblocks-container" class="max-h-[32rem] overflow-y-auto space-y-3.5 pr-1">
+                        <div class="p-6 text-center text-zinc-500 bg-zinc-950/40 border border-zinc-800/60 rounded-xl text-xs">
+                            Loading active roadblocks...
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">Sheet
-                            #</label>
-                        <input id="sheet_no" type="number" value="3" required
-                            class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
-                    </div>
-                    <div>
-                        <label
-                            class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">Question</label>
-                        <input id="question_no" type="text" value="4b" required
-                            class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
-                    </div>
+                </div>
+            </details>
+        </section>
+
+        <!-- Visual Divider -->
+        <div class="relative my-8">
+            <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                <div class="w-full border-t border-zinc-800"></div>
+            </div>
+            <div class="relative flex justify-center text-xs uppercase">
+                <span class="bg-zinc-950 px-3 text-zinc-500 font-medium tracking-wider">
+                    Still stuck? Escalate a New Roadblock
+                </span>
+            </div>
+        </div>
+
+        <!-- Section 2: Doubt Escalation Form -->
+        <section class="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-xl">
+            <div class="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                    <h3 class="text-lg font-bold text-white tracking-tight">Escalate a New Roadblock</h3>
+                    <p class="text-zinc-400 text-xs mt-0.5">Submit your question breakdown so the TA can address it in tutorial.</p>
+                </div>
+                <!-- Dynamic Target Preview Badge -->
+                <div class="text-xs text-zinc-400 bg-zinc-950/80 border border-zinc-800 rounded-lg px-2.5 py-1.5 self-start sm:self-auto">
+                    <span>Target: </span>
+                    <span id="target-preview-badge" class="font-mono text-indigo-400 font-semibold">UMA023 / Sheet 3</span>
+                </div>
+            </div>
+
+            <form id="doubt-form" class="space-y-5">
+                <!-- Question Number Field -->
+                <div>
+                    <label class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">Question #</label>
+                    <input id="question_no" type="text" value="4b" required placeholder="e.g. 4b, 2(a), or 5"
+                           class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
                 </div>
 
                 <!-- Doubt Field -->
                 <div>
-                    <label class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">Your
-                        Specific Roadblock</label>
+                    <label class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">Your Specific Roadblock</label>
                     <textarea id="doubt_text" rows="3" required
-                        placeholder="Describe the step, formula, or derivation where you got stuck..."
-                        class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"></textarea>
+                              placeholder="Describe the step, formula, or derivation where you got stuck..."
+                              class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"></textarea>
                 </div>
 
                 <!-- AI Failure Field -->
                 <div>
-                    <label
-                        class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                    <label class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
                         <span>Where did ChatGPT / Gemini fail?</span>
                         <span class="text-indigo-400 normal-case font-normal text-xs">Crucial for TA context</span>
                     </label>
                     <textarea id="ai_failure_reason" rows="3" required
-                        placeholder="e.g. AI assumed repeated roots, but sir's equation used fixed-end boundary conditions..."
-                        class="w-full bg-zinc-950 border border-indigo-500/30 rounded-lg p-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"></textarea>
+                              placeholder="e.g. AI assumed repeated roots, but sir's equation used fixed-end boundary conditions..."
+                              class="w-full bg-zinc-950 border border-indigo-500/30 rounded-lg p-3 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"></textarea>
                 </div>
 
                 <!-- Submit Button -->
                 <button id="submit-btn" type="submit"
-                    class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 px-4 rounded-lg transition duration-150 flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20">
+                        class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 px-4 rounded-lg transition duration-150 flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20">
                     <span>Escalate to Tutorial Queue</span>
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
                     </svg>
                 </button>
             </form>
 
             <!-- Success Notification (Hidden by default) -->
-            <div id="result-box"
-                class="hidden mt-6 p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-200">
+            <div id="result-box" class="hidden mt-6 p-4 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-200">
                 <div class="flex items-start gap-3">
-                    <svg class="w-5 h-5 text-emerald-400 mt-0.5 shrink-0" fill="none" stroke="currentColor"
-                        viewBox="0 0 24 24">
+                    <svg class="w-5 h-5 text-emerald-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                     </svg>
                     <div>
                         <h4 class="text-sm font-semibold text-white">Roadblock Logged & Clustered</h4>
-                        <p class="text-xs text-emerald-300/80 mt-0.5">Your doubt has been linked with peers for the
-                            upcoming tutorial session.</p>
-                        <div id="cluster-tag"
-                            class="mt-2 inline-block px-2.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono text-xs font-semibold">
+                        <p class="text-xs text-emerald-300/80 mt-0.5">Your doubt has been linked with peers for the upcoming tutorial session.</p>
+                        <div id="cluster-tag" class="mt-2 inline-block px-2.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono text-xs font-semibold">
                             Cluster Assigned
                         </div>
                     </div>
                 </div>
             </div>
+        </section>
+    </div>
+
+    <!-- Full-size Photo Lightbox Modal -->
+    <div id="image-modal" class="fixed inset-0 z-50 bg-black/90 hidden items-center justify-center p-4 backdrop-blur-sm" onclick="closeImageModal()">
+        <div class="relative max-w-4xl max-h-[90vh] bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden p-2 flex flex-col items-center shadow-2xl" onclick="event.stopPropagation()">
+            <div class="w-full flex items-center justify-between pb-2 px-3 pt-1 border-b border-zinc-800/80 text-xs text-zinc-400">
+                <span class="font-medium text-zinc-300">📷 Handwritten Notebook Photo</span>
+                <button onclick="closeImageModal()" class="text-zinc-400 hover:text-white px-2 py-1 rounded-lg hover:bg-zinc-800 transition">✕ Close</button>
+            </div>
+            <div class="p-2 overflow-auto max-h-[80vh] flex items-center justify-center">
+                <img id="modal-img" src="" alt="Full-size notebook photo" class="max-w-full max-h-[75vh] object-contain rounded-lg shadow" />
+            </div>
         </div>
     </div>
 
     <script>
+        const STORAGE_KEY = 'doubthub_upvoted_clusters';
+        const SOL_STORAGE_KEY = 'doubthub_upvoted_solutions';
+
+        const courseInput = document.getElementById('course_id');
+        const sheetInput = document.getElementById('sheet_no');
+        const feedStatus = document.getElementById('feed-status');
+        const summaryTitle = document.getElementById('roadblocks-summary-title');
+        const roadblocksContainer = document.getElementById('roadblocks-container');
+        const targetPreviewBadge = document.getElementById('target-preview-badge');
+        const roadblocksDetails = document.getElementById('roadblocks-details');
         const form = document.getElementById('doubt-form');
         const submitBtn = document.getElementById('submit-btn');
         const resultBox = document.getElementById('result-box');
         const clusterTag = document.getElementById('cluster-tag');
 
+        // LocalStorage Helpers for Clusters
+        function getUpvotedClusters() {
+            try {
+                const stored = localStorage.getItem(STORAGE_KEY);
+                return stored ? JSON.parse(stored) : [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function hasUpvoted(clusterId) {
+            const list = getUpvotedClusters();
+            return list.some(id => String(id) === String(clusterId));
+        }
+
+        function saveUpvotedCluster(clusterId) {
+            const list = getUpvotedClusters();
+            if (!list.some(id => String(id) === String(clusterId))) {
+                list.push(clusterId);
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+                } catch (e) {
+                    console.error('Failed to save upvoted cluster to localStorage', e);
+                }
+            }
+        }
+
+        // LocalStorage Helpers for Solutions
+        function getUpvotedSolutions() {
+            try {
+                const stored = localStorage.getItem(SOL_STORAGE_KEY);
+                return stored ? JSON.parse(stored) : [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function hasUpvotedSolution(solId) {
+            const list = getUpvotedSolutions();
+            return list.some(id => String(id) === String(solId));
+        }
+
+        function saveUpvotedSolution(solId) {
+            const list = getUpvotedSolutions();
+            if (!list.some(id => String(id) === String(solId))) {
+                list.push(solId);
+                try {
+                    localStorage.setItem(SOL_STORAGE_KEY, JSON.stringify(list));
+                } catch (e) {
+                    console.error('Failed to save upvoted solution to localStorage', e);
+                }
+            }
+        }
+
+        // Update target sheet badge
+        function updateTargetPreview() {
+            const course = courseInput.value.trim().toUpperCase() || '—';
+            const sheet = sheetInput.value.trim() || '—';
+            targetPreviewBadge.textContent = `${course} / Sheet ${sheet}`;
+        }
+
+        // Fetch & Render Active Roadblocks
+        async function loadRoadblocks() {
+            updateTargetPreview();
+
+            const course = courseInput.value.trim();
+            const sheet = sheetInput.value.trim();
+            if (!course || !sheet) {
+                feedStatus.textContent = 'Enter course & sheet';
+                summaryTitle.textContent = '⚡ Active Roadblocks (0) — Click to view & upvote';
+                roadblocksContainer.innerHTML = `
+                    <div class="p-6 text-center text-zinc-500 bg-zinc-950/40 border border-zinc-800 rounded-xl text-xs">
+                        Enter a valid course and sheet number above to see active roadblocks.
+                    </div>
+                `;
+                return;
+            }
+
+            feedStatus.textContent = 'Updating...';
+
+            try {
+                const res = await fetch(`/api/ta/board?course_id=${encodeURIComponent(course)}&sheet_no=${encodeURIComponent(sheet)}`);
+                if (!res.ok) throw new Error('Network response was not ok');
+                const clusters = await res.json();
+
+                feedStatus.textContent = `${clusters.length} active`;
+                summaryTitle.textContent = `⚡ Active Roadblocks (${clusters.length}) — Click to view & upvote`;
+
+                if (clusters.length === 0) {
+                    roadblocksContainer.innerHTML = `
+                        <div class="p-6 text-center bg-zinc-950/40 border border-dashed border-zinc-800 rounded-xl">
+                            <p class="text-xs text-zinc-400">No active roadblocks reported for this sheet yet. Be the first to escalate below.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                roadblocksContainer.innerHTML = '';
+                clusters.forEach(c => {
+                    const alreadyUpvoted = hasUpvoted(c.id);
+                    
+                    // Display full doubt text (not truncated to 60 chars)
+                    const fullDoubtText = (c.doubts && c.doubts.length > 0 && c.doubts[0].doubt_text) 
+                        ? c.doubts[0].doubt_text 
+                        : (c.title || 'Roadblock reported');
+
+                    const card = document.createElement('div');
+                    card.className = "bg-zinc-950 border border-zinc-800/90 hover:border-zinc-700/80 rounded-2xl p-4 sm:p-5 transition shadow-sm space-y-3";
+
+                    card.innerHTML = `
+                        <!-- Card Header & Upvote -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="px-2.5 py-0.5 rounded-md bg-zinc-800 text-zinc-200 font-mono text-xs font-semibold">
+                                    Q ${escapeHtml(c.question_no)}
+                                </span>
+                                <span id="cluster-count-${c.id}" data-count="${c.upvotes}" 
+                                      class="px-2.5 py-0.5 rounded-md bg-rose-500/10 border border-rose-500/20 text-rose-400 font-semibold text-xs">
+                                    🔥 ${c.upvotes} ${c.upvotes === 1 ? 'student stuck' : 'students stuck'}
+                                </span>
+                            </div>
+
+                            <div class="shrink-0">
+                                ${alreadyUpvoted ? `
+                                    <button disabled 
+                                            class="w-full sm:w-auto text-xs font-medium px-3.5 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 cursor-not-allowed flex items-center justify-center gap-1.5">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                        <span>✓ Upvoted</span>
+                                    </button>
+                                ` : `
+                                    <button id="upvote-btn-${c.id}" onclick="upvoteRoadblock(${c.id}, this)"
+                                            class="w-full sm:w-auto text-xs font-medium px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition flex items-center justify-center gap-1.5 shadow-sm shadow-indigo-600/20">
+                                        <span>+1 I'm stuck here too</span>
+                                    </button>
+                                `}
+                            </div>
+                        </div>
+
+                        <!-- Pinned Official TA Clarification Banner -->
+                        ${c.ta_response && c.ta_response.trim() ? `
+                            <div class="p-3.5 rounded-xl bg-emerald-950/20 border border-emerald-500/30 text-emerald-100 text-xs space-y-1.5 shadow-sm">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="px-2 py-0.5 rounded text-2xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                                        <span>👑 Official TA Clarification</span>
+                                    </span>
+                                </div>
+                                <div class="text-xs text-emerald-200 leading-relaxed whitespace-pre-line break-words">
+                                    ${escapeHtml(c.ta_response)}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <!-- Full Doubt Text -->
+                        <div class="text-sm text-zinc-100 font-normal leading-relaxed whitespace-pre-line break-words pt-1">
+                            ${escapeHtml(fullDoubtText)}
+                        </div>
+
+                        ${c.doubts && c.doubts.length > 1 ? `
+                            <div class="text-xs text-zinc-400 pt-1 border-t border-zinc-900">
+                                <span class="text-zinc-500 font-medium">+ ${c.doubts.length - 1} related student escalation(s)</span>
+                            </div>
+                        ` : ''}
+
+                        <!-- Action Bar: AI Trap Breakdown Button -->
+                        <div class="pt-1 flex items-center gap-2">
+                            <button id="ai-trap-btn-${c.id}" onclick="toggleAiTrap(${c.id}, this)"
+                                    class="text-xs font-medium bg-zinc-900 hover:bg-zinc-800 border border-indigo-500/30 text-indigo-300 hover:text-indigo-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-sm">
+                                <span>✨ View AI Trap Breakdown</span>
+                            </button>
+                        </div>
+
+                        <!-- AI Trap Breakdown Slot -->
+                        <div id="ai-trap-slot-${c.id}" class="hidden"></div>
+
+                        <!-- Expandable Peer Solutions & Notebook Drops Section -->
+                        <details id="solutions-details-${c.id}" class="mt-3 pt-3 border-t border-zinc-800/80 group/sol" ontoggle="if(this.open) loadSolutions(${c.id})">
+                            <summary class="cursor-pointer text-xs font-semibold text-zinc-300 hover:text-white transition flex items-center justify-between select-none list-none [&::-webkit-details-marker]:hidden py-1">
+                                <span class="flex items-center gap-2">
+                                    <span>💡 Peer Solutions &amp; Notebook Drops</span>
+                                    <span id="solutions-badge-${c.id}" class="text-2xs font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">View</span>
+                                </span>
+                                <span class="text-zinc-500 text-xs transition-transform duration-150 group-open/sol:rotate-180">▼</span>
+                            </summary>
+
+                            <div class="mt-3 space-y-3">
+                                <!-- List of Peer Solutions -->
+                                <div id="solutions-list-${c.id}" class="space-y-2.5">
+                                    <div class="text-xs text-zinc-500 py-1 text-center">Click to load peer solutions...</div>
+                                </div>
+
+                                <!-- Inline Submission Box -->
+                                <div class="bg-zinc-900/90 border border-zinc-800/90 rounded-xl p-3.5 space-y-2.5">
+                                    <div class="text-xs font-semibold text-zinc-300 flex items-center justify-between">
+                                        <span>Drop a Hint or Notebook Photo</span>
+                                        <span class="text-zinc-500 font-normal text-2xs">Help peers stuck on this roadblock</span>
+                                    </div>
+                                    <input type="text" id="sol-author-${c.id}" placeholder="Your Name or Alias (optional, defaults to Anonymous Hosteller)"
+                                           class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500" />
+                                    <textarea id="sol-note-${c.id}" rows="2" placeholder="Write a quick hint, key identity, or whiteboard trick..."
+                                              class="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-indigo-500"></textarea>
+                                    
+                                    <div class="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+                                        <label class="cursor-pointer text-xs text-zinc-300 hover:text-white bg-zinc-950 border border-zinc-800 hover:border-zinc-700 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5 transition">
+                                            <input type="file" id="sol-file-${c.id}" accept=".png,.jpg,.jpeg,.webp" class="hidden" 
+                                                   onchange="handleSolutionFileSelect(${c.id}, this)" />
+                                            <span>📷</span>
+                                            <span id="sol-file-label-${c.id}" class="truncate max-w-[160px]">Attach Notebook Photo</span>
+                                        </label>
+
+                                        <button onclick="submitSolution(${c.id}, this)"
+                                                class="text-xs font-medium px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition flex items-center gap-1.5 shadow-sm shadow-indigo-600/20">
+                                            <span>Post Solution</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </details>
+                    `;
+
+                    roadblocksContainer.appendChild(card);
+                });
+            } catch (err) {
+                feedStatus.textContent = 'Connection error';
+                summaryTitle.textContent = '⚡ Active Roadblocks — Connection error';
+                roadblocksContainer.innerHTML = `
+                    <div class="p-6 text-center text-rose-400 bg-rose-950/20 border border-rose-800/40 rounded-xl text-xs">
+                        Failed to fetch active roadblocks. Make sure the DoubtHub server is running.
+                    </div>
+                `;
+            }
+        }
+
+        // AI Trap Breakdown Toggle
+        async function toggleAiTrap(clusterId, btn) {
+            const slot = document.getElementById(`ai-trap-slot-${clusterId}`);
+            if (!slot) return;
+
+            if (!slot.classList.contains('hidden') && slot.dataset.loaded === 'true') {
+                slot.classList.add('hidden');
+                btn.innerHTML = '<span>✨ View AI Trap Breakdown</span>';
+                return;
+            }
+
+            slot.classList.remove('hidden');
+            btn.disabled = true;
+            const origText = btn.innerHTML;
+            btn.innerHTML = '<span>⚡ Synthesizing AI Trap...</span>';
+
+            slot.innerHTML = `
+                <div class="p-3.5 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-200 text-xs flex items-center gap-2">
+                    <svg class="animate-spin h-3.5 w-3.5 text-indigo-400 shrink-0" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                    <span>Analyzing student roadblock with local Qwen...</span>
+                </div>
+            `;
+
+            try {
+                const res = await fetch(`/api/ta/synthesize/${clusterId}`, { method: 'POST' });
+                const data = await res.json();
+                slot.dataset.loaded = 'true';
+                slot.innerHTML = `
+                    <div class="p-3.5 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-100 text-xs whitespace-pre-line leading-relaxed">
+                        <div class="text-2xs font-semibold uppercase tracking-wider text-indigo-400 mb-1 flex items-center gap-1.5">
+                            <span>⚡ AI Trap &amp; Whiteboard Strategy</span>
+                        </div>
+                        ${escapeHtml(data.summary)}
+                    </div>
+                `;
+                btn.disabled = false;
+                btn.innerHTML = '<span>⚡ Hide AI Trap Breakdown</span>';
+            } catch (err) {
+                btn.disabled = false;
+                btn.innerHTML = origText;
+                slot.innerHTML = `
+                    <div class="p-3 rounded-lg bg-rose-950/20 border border-rose-800/40 text-rose-300 text-xs">
+                        Failed to generate AI breakdown. Ensure backend server and local LLM are reachable.
+                    </div>
+                `;
+            }
+        }
+
+        // Peer Solutions Handler
+        async function loadSolutions(clusterId) {
+            const listContainer = document.getElementById(`solutions-list-${clusterId}`);
+            const badge = document.getElementById(`solutions-badge-${clusterId}`);
+            if (!listContainer) return;
+
+            listContainer.innerHTML = `<div class="text-xs text-zinc-500 py-1 text-center">Loading solutions...</div>`;
+
+            try {
+                const res = await fetch(`/api/clusters/${clusterId}/solutions`);
+                if (!res.ok) throw new Error('Network error');
+                const solutions = await res.json();
+
+                if (badge) {
+                    badge.textContent = `${solutions.length}`;
+                }
+
+                if (solutions.length === 0) {
+                    listContainer.innerHTML = `
+                        <div class="p-3.5 text-center bg-zinc-900/40 border border-dashed border-zinc-800 rounded-xl text-xs text-zinc-400">
+                            No peer solutions posted yet. Be the first to share a hint or photo below!
+                        </div>
+                    `;
+                    return;
+                }
+
+                listContainer.innerHTML = '';
+                solutions.forEach(s => {
+                    const item = document.createElement('div');
+                    item.className = "p-3 rounded-xl bg-zinc-900 border border-zinc-800/80 space-y-2";
+
+                    const alreadyUpvoted = hasUpvotedSolution(s.id);
+
+                    item.innerHTML = `
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-1.5 min-w-0">
+                                <span class="text-xs font-semibold text-zinc-200 truncate">
+                                    ${escapeHtml(s.author_name || 'Anonymous Hosteller')}
+                                </span>
+                                <span class="text-2xs text-zinc-500 font-mono">
+                                    • ${s.created_at ? new Date(s.created_at).toLocaleDateString([], {month:'short', day:'numeric'}) : ''}
+                                </span>
+                            </div>
+
+                            ${alreadyUpvoted ? `
+                                <button disabled 
+                                        class="text-2xs font-medium px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 cursor-not-allowed flex items-center gap-1">
+                                    <span>✓ Helpful</span>
+                                    <span id="sol-upvotes-${s.id}">(${s.upvotes})</span>
+                                </button>
+                            ` : `
+                                <button onclick="upvoteSolution(${s.id}, ${clusterId}, this)"
+                                        class="text-2xs font-medium px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition flex items-center gap-1">
+                                    <span>👍 Helpful</span>
+                                    <span id="sol-upvotes-${s.id}">(${s.upvotes})</span>
+                                </button>
+                            `}
+                        </div>
+
+                        ${s.note_text ? `
+                            <p class="text-xs text-zinc-300 leading-relaxed whitespace-pre-line font-normal break-words">
+                                ${escapeHtml(s.note_text)}
+                            </p>
+                        ` : ''}
+
+                        ${s.image_filename ? `
+                            <div class="mt-2">
+                                <img src="${escapeHtml(s.image_filename)}" alt="Notebook photo" 
+                                     onclick="openImageModal('${escapeHtml(s.image_filename)}')"
+                                     class="max-h-36 max-w-full rounded-lg border border-zinc-800 object-cover cursor-pointer hover:border-indigo-500/60 hover:opacity-95 transition shadow-sm" />
+                                <span class="text-2xs text-zinc-500 block mt-0.5">Click photo to view full size</span>
+                            </div>
+                        ` : ''}
+                    `;
+                    listContainer.appendChild(item);
+                });
+            } catch (err) {
+                listContainer.innerHTML = `
+                    <div class="p-2.5 text-center text-rose-400 bg-rose-950/20 border border-rose-800/40 rounded-xl text-xs">
+                        Failed to load solutions.
+                    </div>
+                `;
+            }
+        }
+
+        function handleSolutionFileSelect(clusterId, input) {
+            const label = document.getElementById(`sol-file-label-${clusterId}`);
+            if (input.files && input.files[0]) {
+                label.textContent = input.files[0].name;
+            } else {
+                label.textContent = "Attach Notebook Photo";
+            }
+        }
+
+        async function submitSolution(clusterId, btn) {
+            const authorInput = document.getElementById(`sol-author-${clusterId}`);
+            const noteInput = document.getElementById(`sol-note-${clusterId}`);
+            const fileInput = document.getElementById(`sol-file-${clusterId}`);
+
+            const author = authorInput ? authorInput.value.trim() : '';
+            const note = noteInput ? noteInput.value.trim() : '';
+            const file = (fileInput && fileInput.files && fileInput.files[0]) ? fileInput.files[0] : null;
+
+            if (!note && !file) {
+                alert('Please write a quick hint or attach a notebook photo.');
+                return;
+            }
+
+            btn.disabled = true;
+            const origText = btn.innerHTML;
+            btn.innerHTML = '<span>Posting...</span>';
+
+            const formData = new FormData();
+            if (author) formData.append('author_name', author);
+            if (note) formData.append('note_text', note);
+            if (file) formData.append('file', file);
+
+            try {
+                const res = await fetch(`/api/clusters/${clusterId}/solutions`, {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!res.ok) throw new Error('Failed to post solution');
+
+                // Clear inputs
+                if (authorInput) authorInput.value = '';
+                if (noteInput) noteInput.value = '';
+                if (fileInput) fileInput.value = '';
+                const label = document.getElementById(`sol-file-label-${clusterId}`);
+                if (label) label.textContent = 'Attach Notebook Photo';
+
+                // Refresh solutions list
+                await loadSolutions(clusterId);
+            } catch (err) {
+                alert('Failed to post solution. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origText;
+            }
+        }
+
+        async function upvoteSolution(solId, clusterId, btn) {
+            if (hasUpvotedSolution(solId)) return;
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`/api/solutions/${solId}/upvote`, { method: 'POST' });
+                if (res.ok) {
+                    const data = await res.json();
+                    saveUpvotedSolution(solId);
+                    const countEl = document.getElementById(`sol-upvotes-${solId}`);
+                    if (countEl) countEl.textContent = `(${data.upvotes})`;
+                    btn.className = "text-2xs font-medium px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 cursor-not-allowed flex items-center gap-1";
+                    btn.innerHTML = `<span>✓ Helpful</span> <span id="sol-upvotes-${solId}">(${data.upvotes})</span>`;
+                } else {
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                btn.disabled = false;
+            }
+        }
+
+        // Image Modal Lightbox
+        function openImageModal(imgSrc) {
+            const modal = document.getElementById('image-modal');
+            const modalImg = document.getElementById('modal-img');
+            if (modal && modalImg) {
+                modalImg.src = imgSrc;
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+        }
+
+        function closeImageModal() {
+            const modal = document.getElementById('image-modal');
+            const modalImg = document.getElementById('modal-img');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+            if (modalImg) {
+                modalImg.src = '';
+            }
+        }
+
+        // Upvote Roadblock Handler
+        async function upvoteRoadblock(clusterId, btn) {
+            if (hasUpvoted(clusterId)) {
+                btn.disabled = true;
+                btn.innerHTML = '<span>✓ Upvoted</span>';
+                return;
+            }
+
+            btn.disabled = true;
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<span>Updating...</span>';
+
+            try {
+                const res = await fetch(`/api/clusters/${clusterId}/upvote`, { method: 'POST' });
+                if (res.ok) {
+                    saveUpvotedCluster(clusterId);
+                    btn.innerHTML = `
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>✓ Upvoted</span>
+                    `;
+                    btn.className = "w-full sm:w-auto text-xs font-medium px-3.5 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 cursor-not-allowed flex items-center justify-center gap-1.5";
+
+                    // Increment displayed student count dynamically
+                    const countEl = document.getElementById(`cluster-count-${clusterId}`);
+                    if (countEl) {
+                        const currentCount = parseInt(countEl.dataset.count, 10) || 0;
+                        const newCount = currentCount + 1;
+                        countEl.dataset.count = newCount;
+                        countEl.textContent = `🔥 ${newCount} ${newCount === 1 ? 'student stuck' : 'students stuck'}`;
+                    }
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = originalContent;
+                    alert('Failed to register upvote. Please try again.');
+                }
+            } catch (err) {
+                btn.disabled = false;
+                btn.innerHTML = originalContent;
+                alert('Connection error while registering upvote.');
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // Debounce helper for inputs
+        let debounceTimeout = null;
+        function handleInput() {
+            updateTargetPreview();
+            clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(loadRoadblocks, 300);
+        }
+
+        courseInput.addEventListener('input', handleInput);
+        sheetInput.addEventListener('input', handleInput);
+        courseInput.addEventListener('change', loadRoadblocks);
+        sheetInput.addEventListener('change', loadRoadblocks);
+
+        // Escalation Form Submit: Dynamically reads course_id and sheet_no directly from top selector
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            // Read directly from the top Target Sheet selector inputs
+            const courseEl = document.getElementById('course_id');
+            const sheetEl = document.getElementById('sheet_no');
+
+            const courseId = courseEl ? courseEl.value.trim().toUpperCase() : '';
+            const sheetNoRaw = sheetEl ? sheetEl.value.trim() : '';
+            const sheetNo = parseInt(sheetNoRaw, 10);
+            const questionNo = document.getElementById('question_no').value.trim();
+            const doubtText = document.getElementById('doubt_text').value.trim();
+            const aiFailureReason = document.getElementById('ai_failure_reason').value.trim();
+
+            if (!courseId) {
+                alert('Please enter a valid Course ID in the Target Sheet selector.');
+                if (courseEl) courseEl.focus();
+                return;
+            }
+
+            if (!sheetNoRaw || isNaN(sheetNo)) {
+                alert('Please enter a valid Sheet # in the Target Sheet selector.');
+                if (sheetEl) sheetEl.focus();
+                return;
+            }
+
+            if (!questionNo || !doubtText || !aiFailureReason) {
+                alert('Please fill out all fields in the doubt form.');
+                return;
+            }
+
             submitBtn.disabled = true;
             submitBtn.innerHTML = 'Clustering & Submitting...';
 
             const payload = {
-                course_id: document.getElementById('course_id').value,
-                sheet_no: parseInt(document.getElementById('sheet_no').value),
-                question_no: document.getElementById('question_no').value,
-                doubt_text: document.getElementById('doubt_text').value,
-                ai_failure_reason: document.getElementById('ai_failure_reason').value,
+                course_id: courseId,
+                sheet_no: sheetNo,
+                question_no: questionNo,
+                doubt_text: doubtText,
+                ai_failure_reason: aiFailureReason,
             };
 
             try {
@@ -130,15 +769,34 @@
                 const data = await res.json();
 
                 resultBox.classList.remove('hidden');
-                clusterTag.textContent = `Cluster #${data.cluster_id} • Queued for TA`;
+                clusterTag.textContent = `Cluster #${data.cluster_id} • Queued for TA (${courseId} / Sheet ${sheetNo} - Q${questionNo})`;
                 document.getElementById('doubt_text').value = '';
                 document.getElementById('ai_failure_reason').value = '';
+
+                // Record this cluster as upvoted by author
+                if (data.cluster_id) {
+                    saveUpvotedCluster(data.cluster_id);
+                }
+
+                // Open the collapsible roadblocks drawer so the student immediately sees the new/merged cluster
+                if (roadblocksDetails) {
+                    roadblocksDetails.open = true;
+                }
+
+                // Refresh the roadblock feed immediately
+                loadRoadblocks();
             } catch (err) {
                 alert('Failed to connect to backend server. Make sure FastAPI is running.');
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = '<span>Escalate to Tutorial Queue</span> <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>';
             }
+        });
+
+        // Initial Load on Page Load
+        window.addEventListener('DOMContentLoaded', () => {
+            updateTargetPreview();
+            loadRoadblocks();
         });
     </script>
 </body>

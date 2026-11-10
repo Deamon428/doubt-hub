@@ -1,8 +1,10 @@
 import json
-import requests
-import numpy as np
-from typing import List, Dict
+import re
+import sqlite3
+from typing import Any, Dict, List
 from datetime import datetime
+import numpy as np
+import requests
 
 DB_NAME = "doubts.db"
 
@@ -19,31 +21,122 @@ def cosine_similarity(vec_a: List[float], vec_b: List[float]) -> float:
         return 0.0
     return dot_product / (norm_a * norm_b)
 
-def assign_or_create_cluster(conn, doubt_data: Dict) -> int:
-    text_to_embed = doubt_data['doubt_text']
+def query_qwen_tie_breaker(existing_title: str, new_doubt: str) -> bool:
+    prompt = (
+        "You are an engineering math TA assistant.\n"
+        "Determine if Doubt B describes the same underlying roadblock as Doubt A for the same problem.\n\n"
+        f'Doubt A (Existing Cluster): "{existing_title}"\n'
+        f'Doubt B (New Student): "{new_doubt}"\n\n'
+        "Do they share the same conceptual confusion or failure mode?\n"
+        'Reply ONLY with a JSON object: {"is_same_roadblock": true} or {"is_same_roadblock": false}'
+    )
+    try:
+        response = requests.post(
+            "http://127.0.0.1:11434/api/generate",
+            json={
+                "model": "qwen2.5-coder:7b",
+                "prompt": prompt,
+                "stream": False,
+                "format": "json"
+            },
+            timeout=15
+        )
+        response.raise_for_status()
+        raw_output = response.json().get("response", "").strip()
+        match = re.search(r'\{.*\}', raw_output, re.DOTALL)
+        if match:
+            parsed = json.loads(match.group(0))
+        else:
+            parsed = json.loads(raw_output)
+        return bool(parsed.get("is_same_roadblock", False))
+    except Exception:
+        return False
+
+def _update_cluster_centroid(conn: sqlite3.Connection, cluster: Any, new_embedding: List[float]) -> int:
+    cluster_id = cluster['id']
+    current_upvotes = cluster['upvotes']
+    old_centroid = np.array(json.loads(cluster['centroid_embedding']), dtype=float)
+    new_vec = np.array(new_embedding, dtype=float)
+
+    new_centroid = (old_centroid * current_upvotes + new_vec) / (current_upvotes + 1)
+    norm = np.linalg.norm(new_centroid)
+    if norm > 0:
+        new_centroid = new_centroid / norm
+
+    upd_cursor = conn.execute(
+        'UPDATE clusters SET upvotes = upvotes + 1, centroid_embedding = ? WHERE id = ?',
+        (json.dumps(new_centroid.tolist()), cluster_id)
+    )
+    upd_cursor.close()
+    return cluster_id
+
+def _create_cluster(conn: sqlite3.Connection, course_id: str, sheet_no: int, question_no: str, title: str, embedding: List[float]) -> int:
+    ins_cursor = conn.execute(
+        'INSERT INTO clusters (course_id, sheet_no, question_no, title, upvotes, centroid_embedding) VALUES (?, ?, ?, ?, ?, ?)',
+        (course_id, sheet_no, question_no, title, 1, json.dumps(embedding))
+    )
+    cluster_id = ins_cursor.lastrowid
+    ins_cursor.close()
+    return cluster_id
+
+def assign_or_create_cluster(conn: sqlite3.Connection, doubt_data: Dict[str, Any]) -> int:
+    course_id = str(doubt_data['course_id']).strip().upper()
+    sheet_no = int(doubt_data['sheet_no'])
+    question_no = str(doubt_data['question_no']).strip().lower()
+    text_to_embed = str(doubt_data['doubt_text']).strip()
+    ai_failure_reason = str(doubt_data.get('ai_failure_reason', '')).strip()
+
+    print(f"[DoubtHub] Processing: Course={course_id}, Sheet={sheet_no}, Q={question_no}")
+
     new_embedding = get_embedding(text_to_embed)
 
-    cursor = conn.execute('SELECT id, centroid_embedding FROM clusters WHERE course_id = ? AND sheet_no = ? AND question_no = ?', (doubt_data['course_id'], doubt_data['sheet_no'], doubt_data['question_no']))
+    cursor = conn.execute(
+        'SELECT id, centroid_embedding, upvotes, title FROM clusters WHERE UPPER(TRIM(course_id)) = ? AND sheet_no = ? AND LOWER(TRIM(question_no)) = ? AND is_resolved = 0',
+        (course_id, sheet_no, question_no)
+    )
     existing_clusters = cursor.fetchall()
+    cursor.close()
 
-    max_similarity = 0.0
-    cluster_id = None
+    print(f"[DoubtHub] Found {len(existing_clusters)} existing cluster(s) in DB for this question")
 
-    for cluster in existing_clusters:
-        centroid_embedding = json.loads(cluster['centroid_embedding'])
-        similarity = cosine_similarity(new_embedding, centroid_embedding)
-        if similarity > max_similarity:
-            max_similarity = similarity
-            cluster_id = cluster['id']
-
-    if max_similarity >= 0.82:
-        conn.execute('UPDATE clusters SET upvotes = upvotes + 1 WHERE id = ?', (cluster_id,))
+    if not existing_clusters:
+        cluster_id = _create_cluster(conn, course_id, sheet_no, question_no, text_to_embed, new_embedding)
+        print(f"[DoubtHub Stage 1] No existing clusters found. Created new Cluster #{cluster_id}")
     else:
-        title = doubt_data['doubt_text'][:60] + "..."
-        cursor = conn.execute('INSERT INTO clusters (course_id, sheet_no, question_no, title, upvotes, centroid_embedding) VALUES (?, ?, ?, ?, ?, ?)', (doubt_data['course_id'], doubt_data['sheet_no'], doubt_data['question_no'], title, 1, json.dumps(new_embedding)))
-        cluster_id = cursor.lastrowid
+        max_similarity = -1.0
+        best_candidate = None
 
-    cursor = conn.execute('INSERT INTO doubts (course_id, sheet_no, question_no, doubt_text, ai_failure_reason, embedding, cluster_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', (doubt_data['course_id'], doubt_data['sheet_no'], doubt_data['question_no'], doubt_data['doubt_text'], doubt_data['ai_failure_reason'], json.dumps(new_embedding), cluster_id, datetime.now().isoformat()))
+        for cluster in existing_clusters:
+            centroid_embedding = json.loads(cluster['centroid_embedding'])
+            similarity = cosine_similarity(new_embedding, centroid_embedding)
+            print(f"[DoubtHub] Comparing with Cluster #{cluster['id']} -> Cosine Similarity: {similarity:.4f}")
+            if similarity > max_similarity:
+                max_similarity = similarity
+                best_candidate = cluster
+
+        best_id = best_candidate['id']
+
+        if max_similarity >= 0.78:
+            print(f"[DoubtHub Stage 1] High similarity ({max_similarity:.4f} >= 0.78). Auto-merging into Cluster #{best_id}")
+            cluster_id = _update_cluster_centroid(conn, best_candidate, new_embedding)
+        elif max_similarity < 0.50:
+            print(f"[DoubtHub Stage 1] Low similarity ({max_similarity:.4f} < 0.50). Auto-creating new cluster")
+            cluster_id = _create_cluster(conn, course_id, sheet_no, question_no, text_to_embed, new_embedding)
+        else:
+            print(f"[DoubtHub Stage 1] Gray zone similarity ({max_similarity:.4f}). Escalating to Qwen tie-breaker...")
+            is_same = query_qwen_tie_breaker(best_candidate['title'], text_to_embed)
+            if is_same:
+                print(f"[DoubtHub Stage 2] Qwen confirmed match! Merging into Cluster #{best_id}")
+                cluster_id = _update_cluster_centroid(conn, best_candidate, new_embedding)
+            else:
+                print(f"[DoubtHub Stage 2] Qwen rejected match. Creating new cluster")
+                cluster_id = _create_cluster(conn, course_id, sheet_no, question_no, text_to_embed, new_embedding)
+
+    d_cursor = conn.execute(
+        'INSERT INTO doubts (course_id, sheet_no, question_no, doubt_text, ai_failure_reason, embedding, cluster_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        (course_id, sheet_no, question_no, text_to_embed, ai_failure_reason, json.dumps(new_embedding), cluster_id, datetime.now().isoformat())
+    )
+    d_cursor.close()
     conn.commit()
 
     return cluster_id
