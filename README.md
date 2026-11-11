@@ -2,7 +2,7 @@
 
 An intelligent academic doubt-resolution platform that eliminates redundant questions through **hybrid AI clustering**, surfaces instant peer solutions, and connects students with verified peer mentors.
 
-🔗 **Live Demo:** [doubt-hub.onrender.com](https://doubt-hub.onrender.com)
+🔗 **Live Demo:** [https://doubt-hub-duhe.onrender.com/]
 
 ---
 
