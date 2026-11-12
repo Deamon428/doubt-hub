@@ -13,3 +13,6 @@ static/uploads/*
 .env
 *.env
 .pytest_cache/
+.venv/
+.pytest_cache/
+.env
