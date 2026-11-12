@@ -1,120 +1,121 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Optional, Generator
+"""SQLite database connection, pragmas, schema migrations, and index management for DoubtHub."""
+
+import logging
+import os
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime
+from typing import Generator, List
 
-DB_NAME = "doubts.db"
+logger = logging.getLogger("doubthub.models")
 
-class DoubtCreate(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True)
+DB_NAME: str = os.getenv("DB_PATH", "doubts.db")
 
-    course_id: str
-    sheet_no: int
-    question_no: str
-    doubt_text: str
-    ai_failure_reason: str
-
-class DoubtOut(BaseModel):
-    id: int
-    course_id: str
-    sheet_no: int
-    question_no: str
-    doubt_text: str
-    ai_failure_reason: str
-    cluster_id: Optional[int]
-    created_at: str
-
-class ClusterOut(BaseModel):
-    id: int
-    course_id: str
-    sheet_no: int
-    question_no: str
-    title: str
-    ai_summary: Optional[str] = None
-    upvotes: int
-    is_resolved: int = 0
-    ta_response: Optional[str] = None
-
-class TALoginRequest(BaseModel):
-    email: str
-    password: str
-
-class TAResponseInput(BaseModel):
-    response_text: str
-    mark_resolved: bool = False
-
-class CommunitySolutionOut(BaseModel):
-    id: int
-    cluster_id: int
-    author_name: str = 'Anonymous Hosteller'
-    note_text: Optional[str] = None
-    image_filename: Optional[str] = None
-    upvotes: int = 0
-    created_at: str
 
 @contextmanager
 def get_db() -> Generator[sqlite3.Connection, None, None]:
+    """Yield a configured SQLite connection with WAL and performance pragmas enabled."""
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA synchronous=NORMAL;")
+    conn.execute("PRAGMA temp_store=MEMORY;")
+    conn.execute("PRAGMA foreign_keys=ON;")
     try:
         yield conn
     finally:
         conn.close()
 
+
+_TABLE_INFO_PRAGMAS = {
+    "clusters": "PRAGMA table_info(clusters)",
+    "community_solutions": "PRAGMA table_info(community_solutions)",
+}
+
+
+def _get_table_columns(conn: sqlite3.Connection, table_name: str) -> List[str]:
+    """Return existing column names for an allowlisted SQLite table."""
+    pragma_sql = _TABLE_INFO_PRAGMAS[table_name]
+    cursor = conn.execute(pragma_sql)
+    try:
+        return [row[1] for row in cursor.fetchall()]
+    finally:
+        cursor.close()
+
+
 def init_db() -> None:
+    """Initialize SQLite tables, backward-compatible column migrations, and composite indexes."""
     with get_db() as conn:
-        conn.execute('''
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS clusters (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                course_id TEXT,
-                sheet_no INTEGER,
-                question_no TEXT,
-                title TEXT,
+                course_id TEXT NOT NULL,
+                sheet_no INTEGER NOT NULL,
+                question_no TEXT NOT NULL,
+                title TEXT NOT NULL,
                 ai_summary TEXT,
                 upvotes INTEGER DEFAULT 1,
                 centroid_embedding TEXT,
                 is_resolved INTEGER DEFAULT 0,
                 ta_response TEXT
             )
-        ''')
-        cursor = conn.execute("PRAGMA table_info(clusters)")
-        try:
-            columns = [row[1] for row in cursor.fetchall()]
-        finally:
-            cursor.close()
+            """
+        )
 
-        if "is_resolved" not in columns:
-            alter_cursor = conn.execute("ALTER TABLE clusters ADD COLUMN is_resolved INTEGER DEFAULT 0")
-            alter_cursor.close()
+        cluster_columns = _get_table_columns(conn, "clusters")
+        if "is_resolved" not in cluster_columns:
+            conn.execute("ALTER TABLE clusters ADD COLUMN is_resolved INTEGER DEFAULT 0").close()
+        if "ta_response" not in cluster_columns:
+            conn.execute("ALTER TABLE clusters ADD COLUMN ta_response TEXT").close()
 
-        if "ta_response" not in columns:
-            alter_cursor = conn.execute("ALTER TABLE clusters ADD COLUMN ta_response TEXT")
-            alter_cursor.close()
-
-        conn.execute('''
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS doubts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                course_id TEXT,
-                sheet_no INTEGER,
-                question_no TEXT,
-                doubt_text TEXT,
-                ai_failure_reason TEXT,
+                course_id TEXT NOT NULL,
+                sheet_no INTEGER NOT NULL,
+                question_no TEXT NOT NULL,
+                doubt_text TEXT NOT NULL,
+                ai_failure_reason TEXT NOT NULL,
                 embedding TEXT,
-                cluster_id INTEGER REFERENCES clusters(id),
+                cluster_id INTEGER REFERENCES clusters(id) ON DELETE CASCADE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        ''')
-        conn.execute('''
+            """
+        )
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS community_solutions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                cluster_id INTEGER REFERENCES clusters(id),
+                cluster_id INTEGER REFERENCES clusters(id) ON DELETE CASCADE,
                 author_name TEXT DEFAULT 'Anonymous Hosteller',
                 note_text TEXT,
                 image_filename TEXT,
                 upvotes INTEGER DEFAULT 0,
-                created_at TEXT
+                created_at TEXT,
+                manage_token TEXT
             )
-        ''')
+            """
+        )
+
+        solution_columns = _get_table_columns(conn, "community_solutions")
+        if "manage_token" not in solution_columns:
+            conn.execute("ALTER TABLE community_solutions ADD COLUMN manage_token TEXT").close()
+
+        # Composite indexes for board queries, hybrid clustering lookup, and peer solution ranking
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_clusters_board ON clusters (course_id, sheet_no, is_resolved, upvotes DESC)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_clusters_lookup ON clusters (UPPER(TRIM(course_id)), sheet_no, LOWER(TRIM(question_no)), is_resolved)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_doubts_cluster_created ON doubts (cluster_id, created_at)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_solutions_cluster_upvotes ON community_solutions (cluster_id, upvotes DESC, id DESC)"
+        )
+
         conn.commit()
+        logger.debug("Database schema and indexes verified at %s", DB_NAME)

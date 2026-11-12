@@ -9,3 +9,7 @@ static/uploads/*
 .env
 .env.*
 .DS_Store
+
+.env
+*.env
+.pytest_cache/

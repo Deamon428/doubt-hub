@@ -5,46 +5,63 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DoubtHub | TA Deadlock Board</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :focus-visible {
+      outline: 2px solid #818cf8;
+      outline-offset: 2px;
+    }
+  </style>
 </head>
 <body class="bg-zinc-950 text-zinc-100 min-h-screen p-6 sm:p-10 font-sans">
 
+  <!-- Global Accessible Toast Banner -->
+  <div id="ta-toast" role="status" aria-live="polite"
+       class="hidden max-w-5xl mx-auto mb-4 p-3.5 rounded-xl border text-xs font-medium flex items-center justify-between gap-3 shadow-lg">
+    <span id="ta-toast-msg"></span>
+    <button type="button" onclick="hideTaToast()" aria-label="Dismiss notification"
+            class="text-zinc-300 hover:text-white px-2 py-0.5 rounded hover:bg-zinc-800/80 transition">
+      ✕
+    </button>
+  </div>
+
   <!-- Authentication Gate: Login View -->
-  <div id="login-view" class="hidden min-h-[80vh] flex items-center justify-center p-4">
-    <div class="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
+  <main id="login-view" class="hidden min-h-[80vh] flex items-center justify-center p-4">
+    <section aria-labelledby="ta-login-heading"
+             class="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
       <div class="text-center space-y-2">
-        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-semibold">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
           <span>Restricted Access</span>
         </div>
-        <h2 class="text-2xl font-bold tracking-tight text-white">DoubtHub TA Portal</h2>
+        <h1 id="ta-login-heading" class="text-2xl font-bold tracking-tight text-white">DoubtHub TA Portal</h1>
         <p class="text-zinc-400 text-xs">Sign in with authorized university credentials to access the tutorial deadlock board.</p>
       </div>
 
       <form id="ta-login-form" class="space-y-4">
         <div>
-          <label class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">University Email</label>
+          <label for="ta-email" class="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">University Email</label>
           <input id="ta-email" type="email" required placeholder="e.g. name@thapar.edu"
-                 class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+                 class="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-400 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400" />
         </div>
         <div>
-          <label class="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">Password</label>
+          <label for="ta-password" class="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">Password</label>
           <input id="ta-password" type="password" required placeholder="••••••••"
-                 class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
+                 class="w-full bg-zinc-950 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-400 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400" />
         </div>
-        <div id="login-error" class="hidden text-xs text-rose-400 bg-rose-950/40 border border-rose-800/40 rounded-lg p-3"></div>
+        <div id="login-error" role="alert" aria-live="polite" class="hidden text-xs text-rose-300 bg-rose-950/50 border border-rose-800/50 rounded-lg p-3"></div>
         <button id="login-btn" type="submit"
                 class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 px-4 rounded-lg transition duration-150 flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20">
           <span>Sign In to TA Portal</span>
         </button>
       </form>
 
-      <div class="text-center pt-2 border-t border-zinc-800/80">
-        <a href="/static/index.html" class="text-xs text-zinc-500 hover:text-zinc-300 transition">← Back to Student View</a>
-      </div>
-    </div>
-  </div>
+      <nav aria-label="Login navigation" class="text-center pt-2 border-t border-zinc-800/80">
+        <a href="/static/index.html" class="text-xs text-zinc-400 hover:text-zinc-200 transition">← Back to Student View</a>
+      </nav>
+    </section>
+  </main>
 
   <!-- Main Board View Container -->
   <div id="board-view" class="hidden max-w-5xl mx-auto">
@@ -53,7 +70,7 @@
       <div>
         <div class="flex items-center gap-2">
           <h1 class="text-2xl font-bold tracking-tight text-white">DoubtHub</h1>
-          <span class="px-2 py-0.5 text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded">
+          <span class="px-2 py-0.5 text-xs font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 rounded">
             TA Deadlock Board
           </span>
         </div>
@@ -61,49 +78,51 @@
       </div>
 
       <!-- Controls & Filter Bar -->
-      <div class="flex flex-wrap items-center gap-3">
-        <a href="/static/index.html" class="text-xs font-medium text-zinc-400 hover:text-zinc-200 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 px-3 py-2 rounded-lg transition flex items-center gap-1.5">
+      <nav aria-label="Board controls and navigation" class="flex flex-wrap items-center gap-3">
+        <a href="/static/index.html" class="text-xs font-medium text-zinc-300 hover:text-white bg-zinc-900 border border-zinc-700 hover:border-zinc-500 px-3 py-2 rounded-lg transition flex items-center gap-1.5">
           <span>← Student View</span>
         </a>
-        <div class="flex items-center bg-zinc-900 border border-zinc-800 rounded-lg p-1">
-          <input id="filter-course" type="text" value="UMA023" placeholder="Course" 
-                 class="w-24 bg-transparent px-2.5 py-1 text-sm font-medium text-white focus:outline-none uppercase" />
-          <span class="text-zinc-600">/</span>
-          <span class="text-xs text-zinc-400 px-2 font-mono">Sheet</span>
-          <input id="filter-sheet" type="number" value="3" placeholder="3" 
-                 class="w-14 bg-transparent px-1 py-1 text-sm font-medium text-white focus:outline-none" />
+        <div class="flex items-center bg-zinc-900 border border-zinc-700 rounded-lg p-1 focus-within:border-indigo-400 focus-within:ring-1 focus-within:ring-indigo-400">
+          <label for="filter-course" class="sr-only">Filter Course ID</label>
+          <input id="filter-course" type="text" value="UMA023" placeholder="Course"
+                 class="w-24 bg-transparent px-2.5 py-1 text-sm font-medium text-white uppercase placeholder-zinc-400" />
+          <span class="text-zinc-400" aria-hidden="true">/</span>
+          <label for="filter-sheet" class="text-xs text-zinc-300 px-2 font-mono">Sheet</label>
+          <input id="filter-sheet" type="number" min="1" max="100" value="3" placeholder="3"
+                 class="w-14 bg-transparent px-1 py-1 text-sm font-medium text-white placeholder-zinc-400" />
         </div>
-        <label class="flex items-center gap-1.5 text-xs text-zinc-400 cursor-pointer select-none bg-zinc-900 border border-zinc-800 rounded-lg px-2.5 py-2 hover:text-zinc-300 transition">
-          <input id="show-resolved" type="checkbox" class="rounded bg-zinc-950 border-zinc-700 text-indigo-600 focus:ring-0 focus:ring-offset-0 cursor-pointer" />
+        <label for="show-resolved" class="flex items-center gap-1.5 text-xs text-zinc-300 cursor-pointer select-none bg-zinc-900 border border-zinc-700 rounded-lg px-2.5 py-2 hover:text-white transition">
+          <input id="show-resolved" type="checkbox" class="rounded bg-zinc-950 border-zinc-600 text-indigo-500 cursor-pointer" />
           <span>Show resolved</span>
         </label>
-        <button id="refresh-btn" 
+        <button id="refresh-btn" type="button"
                 class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition duration-150 flex items-center gap-2">
           <span>Load Queue</span>
         </button>
-        <button id="logout-btn" onclick="logoutTA()" 
-                class="text-xs font-medium text-rose-400 hover:text-rose-300 bg-rose-500/10 border border-rose-500/20 hover:border-rose-500/30 px-3 py-2 rounded-lg transition flex items-center gap-1.5">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button id="logout-btn" type="button" onclick="logoutTA()" aria-label="Sign out of TA Portal"
+                class="text-xs font-medium text-rose-300 hover:text-rose-200 bg-rose-500/15 border border-rose-500/30 hover:border-rose-400/50 px-3 py-2 rounded-lg transition flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
           <span>Logout</span>
         </button>
-      </div>
+      </nav>
     </header>
 
     <!-- Main Queue Container -->
     <main class="mt-8">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Tutorial Priority Bottlenecks</h2>
-        <span id="stat-count" class="text-xs text-zinc-500 font-mono">0 active clusters</span>
-      </div>
-
-      <div id="clusters-container" class="space-y-4">
-        <!-- Loading State -->
-        <div class="p-8 text-center text-zinc-500 bg-zinc-900/50 border border-zinc-800/80 rounded-xl">
-          Loading active roadblocks...
+      <section aria-labelledby="queue-heading">
+        <div class="flex items-center justify-between mb-4">
+          <h2 id="queue-heading" class="text-sm font-semibold text-zinc-300 uppercase tracking-wider">Tutorial Priority Bottlenecks</h2>
+          <span id="stat-count" aria-live="polite" class="text-xs text-zinc-400 font-mono">0 active clusters</span>
         </div>
-      </div>
+
+        <div id="clusters-container" aria-live="polite" class="space-y-4">
+          <div class="p-8 text-center text-zinc-400 bg-zinc-900/50 border border-zinc-800/80 rounded-xl">
+            Loading active roadblocks...
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -120,6 +139,45 @@
     const sheetInput = document.getElementById('filter-sheet');
     const statCount = document.getElementById('stat-count');
     const showResolvedCheckbox = document.getElementById('show-resolved');
+    const taToast = document.getElementById('ta-toast');
+    const taToastMsg = document.getElementById('ta-toast-msg');
+
+    let taToastTimer = null;
+    let filterDebounce = null;
+
+    function escapeHTML(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/\//g, '&#x2F;');
+    }
+    const escapeHtml = escapeHTML;
+
+    function showTaToast(msg, isError = false) {
+      if (!taToast || !taToastMsg) return;
+      clearTimeout(taToastTimer);
+      taToastMsg.textContent = msg;
+      taToast.className = isError
+        ? 'max-w-5xl mx-auto mb-4 p-3.5 rounded-xl border border-rose-500/40 bg-rose-950/50 text-rose-200 text-xs font-medium flex items-center justify-between gap-3 shadow-lg'
+        : 'max-w-5xl mx-auto mb-4 p-3.5 rounded-xl border border-emerald-500/40 bg-emerald-950/50 text-emerald-200 text-xs font-medium flex items-center justify-between gap-3 shadow-lg';
+      taToast.classList.remove('hidden');
+      taToastTimer = setTimeout(hideTaToast, 5000);
+    }
+
+    function hideTaToast() {
+      if (taToast) taToast.classList.add('hidden');
+    }
+
+    function getTaHeaders(extra = {}) {
+      const token = sessionStorage.getItem('ta_token');
+      const headers = { ...extra };
+      if (token) headers['X-TA-Token'] = token;
+      return headers;
+    }
 
     // Authentication Gate Logic
     function checkAuth() {
@@ -146,7 +204,7 @@
         const password = document.getElementById('ta-password').value;
         loginError.classList.add('hidden');
         loginBtn.disabled = true;
-        loginBtn.innerHTML = '<span>Verifying credentials...</span>';
+        loginBtn.textContent = 'Verifying credentials...';
 
         try {
           const res = await fetch('/api/ta/login', {
@@ -165,164 +223,227 @@
           loginError.classList.remove('hidden');
         } finally {
           loginBtn.disabled = false;
-          loginBtn.innerHTML = '<span>Sign In to TA Portal</span>';
+          loginBtn.textContent = 'Sign In to TA Portal';
         }
       });
+    }
+
+    function renderClusterCard(c) {
+      const card = document.createElement('article');
+      card.className = 'bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-sm transition hover:border-zinc-700 space-y-4';
+
+      // Header row
+      const headerDiv = document.createElement('div');
+      headerDiv.className = 'flex items-start justify-between gap-4';
+
+      const leftInfo = document.createElement('div');
+      leftInfo.className = 'space-y-1';
+
+      const pillRow = document.createElement('div');
+      pillRow.className = 'flex items-center gap-2';
+
+      const qSpan = document.createElement('span');
+      qSpan.className = 'px-2.5 py-0.5 rounded-md bg-zinc-800 text-zinc-200 font-mono text-xs font-semibold';
+      qSpan.textContent = `Question ${c.question_no}`;
+
+      const stuckSpan = document.createElement('span');
+      stuckSpan.className = 'px-2 py-0.5 rounded-md bg-rose-500/15 border border-rose-500/30 text-rose-300 font-semibold text-xs';
+      stuckSpan.textContent = `🔥 ${c.upvotes} Students Stuck`;
+
+      pillRow.appendChild(qSpan);
+      pillRow.appendChild(stuckSpan);
+
+      const titleH3 = document.createElement('h3');
+      titleH3.className = 'text-base font-semibold text-white mt-1';
+      titleH3.textContent = c.title;
+
+      leftInfo.appendChild(pillRow);
+      leftInfo.appendChild(titleH3);
+      headerDiv.appendChild(leftInfo);
+
+      const actionsDiv = document.createElement('div');
+      actionsDiv.className = 'flex items-center gap-2 shrink-0';
+
+      if (c.is_resolved) {
+        const resolvedBadge = document.createElement('span');
+        resolvedBadge.className = 'text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-medium flex items-center gap-1.5';
+        resolvedBadge.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg><span>Resolved</span>';
+        actionsDiv.appendChild(resolvedBadge);
+      } else {
+        const resolveBtn = document.createElement('button');
+        resolveBtn.type = 'button';
+        resolveBtn.setAttribute('aria-label', `Mark cluster ${c.id} for Question ${c.question_no} as resolved`);
+        resolveBtn.className = 'text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition flex items-center gap-1.5 font-medium';
+        resolveBtn.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg><span>Mark Resolved</span>';
+        resolveBtn.addEventListener('click', () => resolveCluster(c.id));
+        actionsDiv.appendChild(resolveBtn);
+      }
+
+      const upvoteBtn = document.createElement('button');
+      upvoteBtn.type = 'button';
+      upvoteBtn.setAttribute('aria-label', `Upvote cluster ${c.id}`);
+      upvoteBtn.className = 'shrink-0 text-xs px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition';
+      upvoteBtn.textContent = '+1 Upvote';
+      upvoteBtn.addEventListener('click', () => upvoteCluster(c.id));
+      actionsDiv.appendChild(upvoteBtn);
+
+      headerDiv.appendChild(actionsDiv);
+      card.appendChild(headerDiv);
+
+      // Existing Official TA Clarification Banner
+      if (c.ta_response && c.ta_response.trim()) {
+        const taBox = document.createElement('div');
+        taBox.className = 'p-4 rounded-xl bg-emerald-950/25 border border-emerald-500/30 text-emerald-100 text-sm leading-relaxed space-y-1.5 shadow-sm';
+        taBox.innerHTML = '<div class="flex items-center justify-between"><div class="text-xs font-semibold uppercase tracking-wider text-emerald-300 flex items-center gap-1.5"><span>👑 Published Official TA Clarification</span></div><span class="text-xs font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-medium">Active</span></div>';
+        const taText = document.createElement('div');
+        taText.className = 'text-xs sm:text-sm text-emerald-200 whitespace-pre-line leading-relaxed break-words';
+        taText.textContent = c.ta_response;
+        taBox.appendChild(taText);
+        card.appendChild(taBox);
+      }
+
+      // Collapsible TA Answer Input Window
+      const cid = escapeHTML(c.id);
+      const hasResponse = Boolean(c.ta_response && c.ta_response.trim());
+      const taDetails = document.createElement('details');
+      taDetails.className = 'group/ta-input bg-zinc-950/70 border border-zinc-800 rounded-xl p-3.5';
+      taDetails.innerHTML = `
+        <summary class="cursor-pointer text-xs font-semibold text-zinc-200 hover:text-white transition flex items-center justify-between select-none list-none [&::-webkit-details-marker]:hidden">
+          <span class="flex items-center gap-1.5">
+            <span>✍️ ${hasResponse ? 'Edit Official TA Resolution' : 'Post Official TA Resolution'}</span>
+            ${hasResponse ? '<span class="text-xs font-mono text-zinc-400">(Overwrites current)</span>' : ''}
+          </span>
+          <span class="text-zinc-400 text-xs transition-transform duration-150 group-open/ta-input:rotate-180" aria-hidden="true">▼</span>
+        </summary>
+        <div class="mt-3 space-y-3 pt-3 border-t border-zinc-800/80">
+          <div>
+            <label for="ta-response-text-${cid}" class="sr-only">Official TA Resolution Text</label>
+            <textarea id="ta-response-text-${cid}" rows="3"
+                      placeholder="Drop the exact exam trick, sir's constraint, or direct clarification..."
+                      class="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-3 text-xs text-zinc-100 placeholder-zinc-400 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 leading-relaxed"></textarea>
+          </div>
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <label for="ta-mark-resolved-${cid}" class="flex items-center gap-2 text-xs text-zinc-300 cursor-pointer select-none">
+              <input type="checkbox" id="ta-mark-resolved-${cid}" ${c.is_resolved ? 'checked' : ''}
+                     class="rounded bg-zinc-900 border-zinc-600 text-emerald-500 cursor-pointer" />
+              <span>Mark cluster as resolved on submit</span>
+            </label>
+            <button type="button" id="ta-publish-btn-${cid}"
+                    class="text-xs font-medium px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-600/20">
+              <span>Publish Official Note</span>
+            </button>
+          </div>
+        </div>
+      `;
+      const taTextarea = taDetails.querySelector(`#ta-response-text-${c.id}`);
+      if (taTextarea && c.ta_response) {
+        taTextarea.value = c.ta_response;
+      }
+      const taPublishBtn = taDetails.querySelector(`#ta-publish-btn-${c.id}`);
+      if (taPublishBtn) {
+        taPublishBtn.addEventListener('click', () => submitTaResponse(c.id, taPublishBtn));
+      }
+      card.appendChild(taDetails);
+
+      // Whiteboard AI Guide Slot
+      const summarySlot = document.createElement('div');
+      summarySlot.id = `summary-slot-${c.id}`;
+      summarySlot.setAttribute('aria-live', 'polite');
+      if (c.ai_summary) {
+        const aiBox = document.createElement('div');
+        aiBox.className = 'p-4 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-100 text-sm whitespace-pre-line leading-relaxed';
+        aiBox.innerHTML = '<div class="text-xs font-semibold uppercase tracking-wider text-indigo-300 mb-1 flex items-center gap-1.5"><span>⚡ Whiteboard Resolution Strategy</span></div>';
+        const aiText = document.createElement('div');
+        aiText.textContent = c.ai_summary;
+        aiBox.appendChild(aiText);
+        summarySlot.appendChild(aiBox);
+      } else {
+        const synthBtn = document.createElement('button');
+        synthBtn.type = 'button';
+        synthBtn.className = 'text-xs font-medium bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5';
+        synthBtn.textContent = '✨ Synthesize 2-Min Whiteboard Guide';
+        synthBtn.addEventListener('click', () => generateGuide(c.id, synthBtn));
+        summarySlot.appendChild(synthBtn);
+      }
+      card.appendChild(summarySlot);
+
+      // Student Escalations Accordion
+      const doubtsDetails = document.createElement('details');
+      doubtsDetails.className = 'group';
+      const doubtsSummary = document.createElement('summary');
+      doubtsSummary.className = 'cursor-pointer text-xs font-medium text-zinc-300 hover:text-white transition select-none flex items-center gap-1';
+      const doubtsList = c.doubts || [];
+      doubtsSummary.textContent = `Inspect ${doubtsList.length} student breakdown(s)`;
+      doubtsDetails.appendChild(doubtsSummary);
+
+      const doubtsWrap = document.createElement('div');
+      doubtsWrap.className = 'mt-3 space-y-2 pt-2 border-t border-zinc-800';
+      doubtsList.forEach(d => {
+        const dItem = document.createElement('div');
+        dItem.className = 'p-3 bg-zinc-950 rounded-lg border border-zinc-800/80 text-xs space-y-1';
+
+        const dText = document.createElement('div');
+        dText.className = 'text-zinc-200 font-medium';
+        dText.textContent = d.doubt_text;
+
+        const dReasonWrap = document.createElement('div');
+        dReasonWrap.className = 'text-amber-300 font-mono';
+        dReasonWrap.textContent = 'Why AI failed: ';
+        const dReasonVal = document.createElement('span');
+        dReasonVal.className = 'text-zinc-300 font-sans';
+        dReasonVal.textContent = d.ai_failure_reason;
+        dReasonWrap.appendChild(dReasonVal);
+
+        dItem.appendChild(dText);
+        dItem.appendChild(dReasonWrap);
+        doubtsWrap.appendChild(dItem);
+      });
+      doubtsDetails.appendChild(doubtsWrap);
+      card.appendChild(doubtsDetails);
+
+      return card;
     }
 
     async function loadBoard() {
       const course = courseInput.value.trim();
       const sheet = sheetInput.value.trim();
-      if (!course || !sheet) return;
+      if (!course || course.length < 2 || !sheet) return;
 
-      container.innerHTML = `<div class="p-8 text-center text-zinc-500 bg-zinc-900/50 border border-zinc-800/80 rounded-xl">Fetching doubt clusters...</div>`;
+      container.innerHTML = '<div class="p-8 text-center text-zinc-400 bg-zinc-900/50 border border-zinc-800/80 rounded-xl">Fetching doubt clusters...</div>';
 
       try {
         const includeResolved = showResolvedCheckbox ? showResolvedCheckbox.checked : false;
         const res = await fetch(`/api/ta/board?course_id=${encodeURIComponent(course)}&sheet_no=${encodeURIComponent(sheet)}${includeResolved ? '&include_resolved=true' : ''}`);
+        if (!res.ok) throw new Error('Failed to load board');
         const clusters = await res.json();
 
         statCount.textContent = `${clusters.length} roadblock cluster${clusters.length === 1 ? '' : 's'}${includeResolved ? ' (including resolved)' : ''}`;
 
+        container.innerHTML = '';
         if (clusters.length === 0) {
-          container.innerHTML = `
-            <div class="p-12 text-center bg-zinc-900/30 border border-dashed border-zinc-800 rounded-2xl">
-              <p class="text-zinc-400 font-medium">No unresolved doubts logged for Sheet ${sheet}.</p>
-              <p class="text-xs text-zinc-600 mt-1">Students either understood the material or haven't opened the tutorial sheet yet.</p>
-            </div>
-          `;
+          const emptyCard = document.createElement('div');
+          emptyCard.className = 'p-12 text-center bg-zinc-900/30 border border-dashed border-zinc-800 rounded-2xl';
+          const p1 = document.createElement('p');
+          p1.className = 'text-zinc-300 font-medium';
+          p1.textContent = `No unresolved doubts logged for Sheet ${sheet}.`;
+          const p2 = document.createElement('p');
+          p2.className = 'text-xs text-zinc-400 mt-1';
+          p2.textContent = "Students either understood the material or haven't opened the tutorial sheet yet.";
+          emptyCard.appendChild(p1);
+          emptyCard.appendChild(p2);
+          container.appendChild(emptyCard);
           return;
         }
 
-        container.innerHTML = '';
         clusters.forEach((c) => {
-          const card = document.createElement('div');
-          card.className = "bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-sm transition hover:border-zinc-700 space-y-4";
-
-          // Format AI Summary if present
-          const summaryHtml = c.ai_summary 
-            ? `<div class="p-4 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-100 text-sm whitespace-pre-line leading-relaxed">
-                 <div class="text-xs font-semibold uppercase tracking-wider text-indigo-400 mb-1 flex items-center gap-1.5">
-                   <span>⚡ Whiteboard Resolution Strategy</span>
-                 </div>
-                 ${escapeHtml(c.ai_summary)}
-               </div>`
-            : `<div>
-                 <button onclick="generateGuide(${c.id}, this)" 
-                         class="text-xs font-medium bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
-                   <span>✨ Synthesize 2-Min Whiteboard Guide</span>
-                 </button>
-               </div>`;
-
-          // Format Student Breakdown Accordion
-          const doubtsHtml = (c.doubts || []).map(d => `
-            <div class="p-3 bg-zinc-950 rounded-lg border border-zinc-800/80 text-xs space-y-1">
-              <div class="text-zinc-200 font-medium">${escapeHtml(d.doubt_text)}</div>
-              <div class="text-amber-400/90 font-mono">Why AI failed: <span class="text-zinc-400 font-sans">${escapeHtml(d.ai_failure_reason)}</span></div>
-            </div>
-          `).join('');
-
-          card.innerHTML = `
-            <!-- Card Header -->
-            <div class="flex items-start justify-between gap-4">
-              <div class="space-y-1">
-                <div class="flex items-center gap-2">
-                  <span class="px-2.5 py-0.5 rounded-md bg-zinc-800 text-zinc-300 font-mono text-xs font-semibold">
-                    Question ${escapeHtml(c.question_no)}
-                  </span>
-                  <span class="px-2 py-0.5 rounded-md bg-rose-500/10 border border-rose-500/20 text-rose-400 font-semibold text-xs">
-                    🔥 ${c.upvotes} Students Stuck
-                  </span>
-                </div>
-                <h3 class="text-base font-semibold text-white mt-1">${escapeHtml(c.title)}</h3>
-              </div>
-
-              <div class="flex items-center gap-2 shrink-0">
-                ${c.is_resolved ? `
-                  <span class="text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium flex items-center gap-1.5">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                    </svg>
-                    <span>Resolved</span>
-                  </span>
-                ` : `
-                  <button onclick="resolveCluster(${c.id})" 
-                          class="text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition flex items-center gap-1.5 font-medium">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                    </svg>
-                    <span>Mark Resolved</span>
-                  </button>
-                `}
-                <button onclick="upvoteCluster(${c.id})" 
-                        class="shrink-0 text-xs px-2.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 transition">
-                  +1 Upvote
-                </button>
-              </div>
-            </div>
-
-            <!-- Prominently Displayed Official TA Clarification (if exists) -->
-            ${c.ta_response && c.ta_response.trim() ? `
-              <div class="p-4 rounded-xl bg-emerald-950/25 border border-emerald-500/30 text-emerald-100 text-sm leading-relaxed space-y-1.5 shadow-sm">
-                <div class="flex items-center justify-between">
-                  <div class="text-xs font-semibold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                    <span>👑 Published Official TA Clarification</span>
-                  </div>
-                  <span class="text-2xs font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-medium">Active</span>
-                </div>
-                <div class="text-xs sm:text-sm text-emerald-200 whitespace-pre-line leading-relaxed break-words">${escapeHtml(c.ta_response)}</div>
-              </div>
-            ` : ''}
-
-            <!-- Collapsible TA Answer Input Window -->
-            <details class="group/ta-input bg-zinc-950/70 border border-zinc-800 rounded-xl p-3.5">
-              <summary class="cursor-pointer text-xs font-semibold text-zinc-300 hover:text-white transition flex items-center justify-between select-none list-none [&::-webkit-details-marker]:hidden">
-                <span class="flex items-center gap-1.5">
-                  <span>✍️ ${c.ta_response && c.ta_response.trim() ? 'Edit Official TA Resolution' : 'Post Official TA Resolution'}</span>
-                  ${c.ta_response && c.ta_response.trim() ? '<span class="text-2xs font-mono text-zinc-500">(Overwrites current)</span>' : ''}
-                </span>
-                <span class="text-zinc-500 text-xs transition-transform duration-150 group-open/ta-input:rotate-180">▼</span>
-              </summary>
-              <div class="mt-3 space-y-3 pt-3 border-t border-zinc-800/80">
-                <div>
-                  <textarea id="ta-response-text-${c.id}" rows="3" 
-                            placeholder="Drop the exact exam trick, sir's constraint, or direct clarification..."
-                            class="w-full bg-zinc-900 border border-zinc-700/80 rounded-lg p-3 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 leading-relaxed">${c.ta_response ? escapeHtml(c.ta_response) : ''}</textarea>
-                </div>
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <label class="flex items-center gap-2 text-xs text-zinc-400 cursor-pointer select-none">
-                    <input type="checkbox" id="ta-mark-resolved-${c.id}" ${c.is_resolved ? 'checked' : ''}
-                           class="rounded bg-zinc-900 border-zinc-700 text-emerald-600 focus:ring-0 focus:ring-offset-0 cursor-pointer" />
-                    <span>Mark cluster as resolved on submit</span>
-                  </label>
-                  <button onclick="submitTaResponse(${c.id}, this)"
-                          class="text-xs font-medium px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-600/20">
-                    <span>Publish Official Note</span>
-                  </button>
-                </div>
-              </div>
-            </details>
-
-            <!-- Whiteboard AI Guide Slot -->
-            <div id="summary-slot-${c.id}">
-              ${summaryHtml}
-            </div>
-
-            <!-- Student Escalations Accordion -->
-            <details class="group">
-              <summary class="cursor-pointer text-xs font-medium text-zinc-400 hover:text-zinc-200 transition select-none flex items-center gap-1">
-                <span>Inspect ${(c.doubts || []).length} student breakdown(s)</span>
-              </summary>
-              <div class="mt-3 space-y-2 pt-2 border-t border-zinc-800">
-                ${doubtsHtml}
-              </div>
-            </details>
-          `;
-
-          container.appendChild(card);
+          container.appendChild(renderClusterCard(c));
         });
       } catch (err) {
-        container.innerHTML = `<div class="p-6 text-center text-rose-400 bg-rose-950/20 border border-rose-800/40 rounded-xl">Error loading deadlock board. Ensure the FastAPI backend is running.</div>`;
+        container.innerHTML = '';
+        const errDiv = document.createElement('div');
+        errDiv.className = 'p-6 text-center text-rose-300 bg-rose-950/30 border border-rose-800/40 rounded-xl';
+        errDiv.textContent = 'Error loading deadlock board. Ensure the FastAPI backend is running.';
+        container.appendChild(errDiv);
       }
     }
 
@@ -333,19 +454,20 @@
 
       const responseText = textarea.value.trim();
       if (!responseText) {
-        alert('Please enter an official clarification before publishing.');
+        showTaToast('Please enter an official clarification before publishing.', true);
+        textarea.focus();
         return;
       }
       const markResolved = checkbox ? checkbox.checked : false;
 
       btn.disabled = true;
-      const originalHtml = btn.innerHTML;
-      btn.innerHTML = '<span>Publishing...</span>';
+      const originalText = btn.textContent;
+      btn.textContent = 'Publishing...';
 
       try {
         const res = await fetch(`/api/clusters/${clusterId}/ta-response`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getTaHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             response_text: responseText,
             mark_resolved: markResolved
@@ -355,30 +477,34 @@
           const errData = await res.json().catch(() => ({}));
           throw new Error(errData.detail || 'Failed to publish TA response');
         }
+        showTaToast('Official TA clarification published.');
         loadBoard();
       } catch (err) {
-        alert(`Error: ${err.message}`);
+        showTaToast(`Error: ${err.message}`, true);
         btn.disabled = false;
-        btn.innerHTML = originalHtml;
+        btn.textContent = originalText;
       }
     }
 
     async function generateGuide(clusterId, btn) {
       btn.disabled = true;
-      btn.textContent = 'Generating briefing via local Qwen...';
+      btn.textContent = 'Generating briefing via Gemini...';
 
       try {
         const res = await fetch(`/api/ta/synthesize/${clusterId}`, { method: 'POST' });
+        if (!res.ok) throw new Error('Synthesis failed');
         const data = await res.json();
         const slot = document.getElementById(`summary-slot-${clusterId}`);
-        slot.innerHTML = `
-          <div class="p-4 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-100 text-sm whitespace-pre-line leading-relaxed">
-            <div class="text-xs font-semibold uppercase tracking-wider text-indigo-400 mb-1 flex items-center gap-1.5">
-              <span>⚡ Whiteboard Resolution Strategy</span>
-            </div>
-            ${escapeHtml(data.summary)}
-          </div>
-        `;
+        if (slot) {
+          slot.innerHTML = '';
+          const aiBox = document.createElement('div');
+          aiBox.className = 'p-4 rounded-xl bg-indigo-950/40 border border-indigo-500/30 text-indigo-100 text-sm whitespace-pre-line leading-relaxed';
+          aiBox.innerHTML = '<div class="text-xs font-semibold uppercase tracking-wider text-indigo-300 mb-1 flex items-center gap-1.5"><span>⚡ Whiteboard Resolution Strategy</span></div>';
+          const aiText = document.createElement('div');
+          aiText.textContent = data.summary || '';
+          aiBox.appendChild(aiText);
+          slot.appendChild(aiBox);
+        }
       } catch (err) {
         btn.disabled = false;
         btn.textContent = 'Failed. Retry?';
@@ -392,8 +518,12 @@
 
     async function resolveCluster(clusterId) {
       try {
-        const res = await fetch(`/api/clusters/${clusterId}/resolve`, { method: 'PATCH' });
+        const res = await fetch(`/api/clusters/${clusterId}/resolve`, {
+          method: 'PATCH',
+          headers: getTaHeaders()
+        });
         if (res.ok) {
+          showTaToast('Cluster marked as resolved.');
           loadBoard();
         }
       } catch (err) {
@@ -401,11 +531,13 @@
       }
     }
 
-    function escapeHtml(str) {
-      if (!str) return '';
-      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    function handleFilterInput() {
+      clearTimeout(filterDebounce);
+      filterDebounce = setTimeout(loadBoard, 250);
     }
 
+    courseInput.addEventListener('input', handleFilterInput);
+    sheetInput.addEventListener('input', handleFilterInput);
     refreshBtn.addEventListener('click', loadBoard);
     if (showResolvedCheckbox) {
       showResolvedCheckbox.addEventListener('change', loadBoard);
